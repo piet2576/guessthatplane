@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GuessThatPlane</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #151820;
+      --card:      #1c2030;
+      --border:    #2a3045;
+      --sunset-1:  #ff6a00;
+      --sunset-2:  #ee0979;
+      --accent:    #ff7c2a;
+      --text:      #e8eaf0;
+      --muted:     #7a8099;
+      --correct:   #2ecc71;
+      --wrong:     #e74c3c;
+      --mono:      'Share Tech Mono', monospace;
+      --sans:      'Inter', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── HUD HEADER ── */
+    header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+      background: linear-gradient(90deg, var(--sunset-1), var(--sunset-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hud-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hud-score, .hud-streak, .hud-timer {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      display: none;
+    }
+
+    .hud-score  { color: var(--accent); }
+    .hud-streak { color: #f1c40f; }
+    .hud-timer  { color: var(--text); }
+    .hud-timer.danger { color: var(--wrong); border-color: var(--wrong); }
+
+    /* ── SCREENS ── */
+    .screen { display: none; width: 100%; max-width: 860px; padding: 40px 24px; }
+    .screen.active { display: block; }
+
+    /* ── HERO BANNER ── */
+    .hero-banner {
+      width: 100%;
+      max-width: 860px;
+      height: 280px;
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 36px;
+    }
+
+    .hero-banner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(13,15,20,0.1) 0%, rgba(13,15,20,0.85) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 32px 24px;
+      text-align: center;
+    }
+
+    .hero-overlay h1 {
+      font-size: 2.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+
+    .hero-overlay h1 span {
+      background: linear-gradient(90deg, var(--sunset-1), var(--sunset-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-overlay p {
+      color: rgba(232,234,240,0.75);
+      font-size: 0.95rem;
+      max-width: 400px;
+    }
+
+    /* ── DASHBOARD BOTTOM ── */
+    .dashboard-actions {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 12px;
+      text-align: center;
+    }
+
+    .stat-card .stat-value {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      color: var(--accent);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--sunset-1), var(--sunset-2));
+      color: #fff;
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 14px 52px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: opacity 0.15s, transform 0.1s;
+      margin-bottom: 12px;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-ghost {
+      display: inline-block;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 0.85rem;
+      padding: 8px 24px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      margin-left: 10px;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── HOW TO PLAY ── */
+    .how-to-play {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 0;
+    }
+
+    .how-to-play h3 {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .how-step {
+      text-align: center;
+    }
+
+    .how-step .step-icon {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .how-step p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── QUIZ SCREEN ── */
+    .quiz-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .quiz-progress {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .streak-badge {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: #f1c40f;
+      background: rgba(241,196,15,0.1);
+      border: 1px solid rgba(241,196,15,0.3);
+      padding: 3px 10px;
+      border-radius: 20px;
+      display: none;
+    }
+
+    .progress-bar-wrap {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--sunset-1), var(--sunset-2));
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+
+    /* Timer bar */
+    .timer-bar-wrap {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .timer-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.1s linear, background 0.3s;
+    }
+
+    .timer-bar-fill.danger { background: var(--wrong); }
+
+    .plane-image-wrap {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .plane-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity 0.2s;
+    }
+
+    .answers-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .answer-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 16px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .answer-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: #1f2535;
+      transform: translateY(-1px);
+    }
+
+    .answer-btn .opt-label {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      min-width: 18px;
+    }
+
+    .answer-btn.correct {
+      border-color: var(--correct);
+      background: rgba(46,204,113,0.12);
+      color: var(--correct);
+    }
+
+    .answer-btn.wrong {
+      border-color: var(--wrong);
+      background: rgba(231,76,60,0.12);
+      color: var(--wrong);
+    }
+
+    .answer-btn:disabled { cursor: default; transform: none; }
+
+    /* ── FEEDBACK TOAST ── */
+    #toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 1000;
+      white-space: nowrap;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #toast.correct { color: var(--correct); border-color: var(--correct); }
+    #toast.wrong   { color: var(--wrong);   border-color: var(--wrong); }
+
+    /* ── RESULT SCREEN ── */
+    .result-wrap { text-align: center; padding: 20px 0; }
+
+    .result-score-circle {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      background: var(--card);
+      position: relative;
+    }
+
+    .result-score-circle .big-num {
+      font-family: var(--mono);
+      font-size: 2.6rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .result-score-circle .out-of {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .result-wrap h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; }
+    .result-wrap > p { color: var(--muted); margin-bottom: 28px; font-size: 0.95rem; }
+
+    .result-breakdown {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .breakdown-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 10px;
+      text-align: center;
+    }
+
+    .breakdown-card .bval {
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .breakdown-card .blabel {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .bval.green  { color: var(--correct); }
+    .bval.red    { color: var(--wrong); }
+    .bval.orange { color: var(--accent); }
+    .bval.yellow { color: #f1c40f; }
+
+    /* NEW BEST badge */
+    .new-best {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--sunset-1), var(--sunset-2));
+      color: #fff;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      letter-spacing: 0.06em;
+    }
+
+    /* Scanline */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px
+      );
+      pointer-events: none;
+      z-index: 998;
+    }
+
+    @media (max-width: 600px) {
+      .answers-grid        { grid-template-columns: 1fr; }
+      .stats-grid          { grid-template-columns: 1fr 1fr; }
+      .result-breakdown    { grid-template-columns: 1fr 1fr; }
+      .how-steps           { grid-template-columns: 1fr; }
+      .hero-overlay h1     { font-size: 1.9rem; }
+      .hero-banner         { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<header>
+  <div class="logo">✈ GUESSTHATPLANE</div>
+  <div class="hud-right">
+    <div class="hud-timer"  id="hudTimer">15s</div>
+    <div class="hud-streak" id="hudStreak">🔥 0</div>
+    <div class="hud-score"  id="hudScore">0 / 0</div>
+  </div>
+</header>
+
+<!-- ── START / DASHBOARD ── -->
+<div class="screen active" id="screenStart" style="padding-top:28px;">
+
+  <div class="hero-banner">
+    <img src="hero.jpg" alt="Cockpit sunset view" onerror="this.style.display='none'" />
+    <div class="hero-overlay">
+      <h1>Can you <span>Guess That Plane?</span></h1>
+      <p>Identify commercial aircraft from photos — 21 types, shuffled every round.</p>
+    </div>
+  </div>
+
+  <div class="dashboard-actions">
+    <button class="btn-primary" onclick="startQuiz()">▶ Start Quiz</button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-value">21</span>
+      <span class="stat-label">Aircraft Types</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="statBest">—</span>
+      <span class="stat-label">Best Score</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="statRounds">0</span>
+      <span class="stat-label">Rounds Played</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="statBestStreak">—</span>
+      <span class="stat-label">Best Streak</span>
+    </div>
+  </div>
+
+  <div class="how-to-play">
+    <h3>How to Play</h3>
+    <div class="how-steps">
+      <div class="how-step">
+        <span class="step-icon">📸</span>
+        <p>A photo of an aircraft appears on screen</p>
+      </div>
+      <div class="how-step">
+        <span class="step-icon">⏱</span>
+        <p>You have 15 seconds to pick the correct type</p>
+      </div>
+      <div class="how-step">
+        <span class="step-icon">🔥</span>
+        <p>Build a streak by answering correctly in a row</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── QUIZ ── -->
+<div class="screen" id="screenQuiz">
+  <div class="quiz-meta">
+    <div class="quiz-progress" id="quizProgress">QUESTION 1 / 21</div>
+    <div class="streak-badge" id="streakBadge">🔥 0 streak</div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+  </div>
+  <div class="timer-bar-wrap">
+    <div class="timer-bar-fill" id="timerBarFill" style="width:100%"></div>
+  </div>
+  <div class="plane-image-wrap">
+    <img id="planeImg" src="" alt="Identify this aircraft" />
+  </div>
+  <div class="answers-grid" id="answersGrid"></div>
+</div>
+
+<!-- ── RESULT ── -->
+<div class="screen" id="screenResult">
+  <div class="result-wrap">
+    <div class="result-score-circle">
+      <span class="big-num" id="resultNum">0</span>
+      <span class="out-of" id="resultOut">out of 21</span>
+    </div>
+    <div id="newBestBadge" class="new-best" style="display:none">🏆 NEW BEST SCORE</div>
+    <h2 id="resultTitle">Well done!</h2>
+    <p id="resultSub">Here's how you performed this round.</p>
+    <div class="result-breakdown">
+      <div class="breakdown-card">
+        <span class="bval green"  id="rdCorrect">0</span>
+        <span class="blabel">Correct</span>
+      </div>
+      <div class="breakdown-card">
+        <span class="bval red"    id="rdWrong">0</span>
+        <span class="blabel">Wrong</span>
+      </div>
+      <div class="breakdown-card">
+        <span class="bval orange" id="rdPct">0%</span>
+        <span class="blabel">Accuracy</span>
+      </div>
+      <div class="breakdown-card">
+        <span class="bval yellow" id="rdStreak">0</span>
+        <span class="blabel">Best Streak</span>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="startQuiz()">▶ Fly Again</button>
+    <button class="btn-ghost"   onclick="resetQuiz()">↩ Home</button>
+  </div>
+</div>
+
+<script>
+  const planes = [
+    { label: "Airbus A220",     file: "a220.jpg" },
+    { label: "Airbus A300",     file: "a300.jpg" },
+    { label: "Airbus A310",     file: "a310.jpg" },
+    { label: "Airbus A318",     file: "a318.jpg" },
+    { label: "Airbus A319",     file: "a319.jpg" },
+    { label: "Airbus A320",     file: "a320.jpg" },
+    { label: "Airbus A320neo",  file: "a320neo.jpg" },
+    { label: "Airbus A321",     file: "a321.jpg" },
+    { label: "Airbus A321neo",  file: "a321neo.jpg" },
+    { label: "Airbus A330",     file: "a330.jpg" },
+    { label: "Airbus A330neo",  file: "a330neo.jpg" },
+    { label: "Airbus A340",     file: "a340.jpg" },
+    { label: "Airbus A340-600", file: "a340-600.jpg" },
+    { label: "Airbus A380",     file: "a380.jpg" },
+    { label: "Airbus Beluga",   file: "beluga.jpg" },
+    { label: "Boeing 737",      file: "b737.jpg" },
+    { label: "Boeing 747",      file: "b747.jpg" },
+    { label: "Boeing 757",      file: "b757.jpg" },
+    { label: "Boeing 767",      file: "b767.jpg" },
+    { label: "Boeing 777",      file: "b777.jpg" },
+    { label: "Boeing 787",      file: "b787.jpg" },
+  ];
+
+  const OPTS = ['A','B','C','D'];
+  const TIMER_SEC = 15;
+
+  let queue=[], current=0, score=0, rounds=0, best=0;
+  let streak=0, bestStreak=0, roundBestStreak=0;
+  let timerInterval=null, timerLeft=TIMER_SEC;
+
+  function shuffle(arr) {
+    const a=[...arr];
+    for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+    return a;
+  }
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function showHUD(v) {
+    ['hudScore','hudStreak','hudTimer'].forEach(id=>{
+      document.getElementById(id).style.display = v ? 'block' : 'none';
+    });
+  }
+
+  function updateHUD() {
+    document.getElementById('hudScore').textContent  = `${score} / ${current}`;
+    document.getElementById('hudStreak').textContent = `🔥 ${streak}`;
+    const sb = document.getElementById('streakBadge');
+    if(streak>=2){ sb.style.display='block'; sb.textContent=`🔥 ${streak} streak`; }
+    else { sb.style.display='none'; }
+  }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    timerLeft = TIMER_SEC;
+    updateTimerBar();
+    timerInterval = setInterval(()=>{
+      timerLeft -= 0.1;
+      if(timerLeft <= 0){ timerLeft=0; updateTimerBar(); clearInterval(timerInterval); timeOut(); }
+      else { updateTimerBar(); }
+    }, 100);
+  }
+
+  function updateTimerBar() {
+    const pct = (timerLeft / TIMER_SEC) * 100;
+    const fill = document.getElementById('timerBarFill');
+    const hud  = document.getElementById('hudTimer');
+    fill.style.width = pct + '%';
+    const danger = timerLeft <= 5;
+    fill.classList.toggle('danger', danger);
+    hud.textContent = Math.ceil(timerLeft) + 's';
+    hud.classList.toggle('danger', danger);
+  }
+
+  function timeOut() {
+    const grid = document.getElementById('answersGrid');
+    const btns = grid.querySelectorAll('.answer-btn');
+    const correct = queue[current].label;
+    btns.forEach(b=>{
+      b.disabled=true;
+      if(b.querySelector('.opt-label').nextSibling && b.textContent.replace(/^[A-D]/,'').trim()===correct)
+        b.classList.add('correct');
+    });
+    streak = 0;
+    updateHUD();
+    showToast('⏱ Time\'s up! — ' + correct, 'wrong');
+    setTimeout(nextQuestion, 1400);
+  }
+
+  function startQuiz() {
+    queue = shuffle(planes);
+    current=0; score=0; streak=0; roundBestStreak=0;
+    showHUD(true);
+    updateHUD();
+    show('screenQuiz');
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    const total=queue.length, q=queue[current];
+    document.getElementById('quizProgress').textContent = `QUESTION ${current+1} / ${total}`;
+    document.getElementById('progressFill').style.width = `${(current/total)*100}%`;
+    const img = document.getElementById('planeImg');
+    img.style.opacity='0';
+    img.src = q.file;
+    img.onload = ()=>{ img.style.opacity='1'; };
+
+    const others = planes.filter(p=>p.label!==q.label);
+    const options = shuffle([q, ...shuffle(others).slice(0,3)]);
+    const grid = document.getElementById('answersGrid');
+    grid.innerHTML='';
+    options.forEach((opt,i)=>{
+      const btn=document.createElement('button');
+      btn.className='answer-btn';
+      btn.innerHTML=`<span class="opt-label">${OPTS[i]}</span>${opt.label}`;
+      btn.onclick=()=>handleAnswer(btn, opt.label, q.label, grid);
+      grid.appendChild(btn);
+    });
+    startTimer();
+    updateHUD();
+  }
+
+  function handleAnswer(btn, chosen, correct, grid) {
+    clearInterval(timerInterval);
+    const btns = grid.querySelectorAll('.answer-btn');
+    btns.forEach(b=>{
+      b.disabled=true;
+      if(b.textContent.replace(/^[A-D]/,'').trim()===correct) b.classList.add('correct');
+    });
+    if(chosen===correct){
+      btn.classList.add('correct');
+      score++; streak++;
+      if(streak>roundBestStreak) roundBestStreak=streak;
+      if(streak>bestStreak) bestStreak=streak;
+      showToast(streak>=3 ? `🔥 ${streak} in a row!` : '✓ Correct!', 'correct');
+    } else {
+      btn.classList.add('wrong');
+      streak=0;
+      showToast('✗ Wrong — ' + correct, 'wrong');
+    }
+    updateHUD();
+    setTimeout(nextQuestion, 1200);
+  }
+
+  function nextQuestion() {
+    current++;
+    if(current>=queue.length) endQuiz();
+    else renderQuestion();
+  }
+
+  function endQuiz() {
+    clearInterval(timerInterval);
+    showHUD(false);
+    rounds++;
+    const isNewBest = score > best;
+    if(isNewBest) best=score;
+    const total=queue.length, pct=Math.round((score/total)*100);
+    document.getElementById('resultNum').textContent    = score;
+    document.getElementById('resultOut').textContent    = `out of ${total}`;
+    document.getElementById('rdCorrect').textContent    = score;
+    document.getElementById('rdWrong').textContent      = total-score;
+    document.getElementById('rdPct').textContent        = pct+'%';
+    document.getElementById('rdStreak').textContent     = roundBestStreak;
+    document.getElementById('newBestBadge').style.display = isNewBest ? 'inline-block' : 'none';
+    document.getElementById('resultTitle').textContent  =
+      pct>=90 ? 'Ace Spotter! ✈' : pct>=70 ? 'Excellent spotting!' :
+      pct>=50 ? 'Decent flight, keep training.' : 'Back to the hangar…';
+    document.getElementById('resultSub').textContent    =
+      `You scored ${score} of ${total} — ${pct}% accuracy.`;
+    document.getElementById('statBest').textContent     = best+'/'+total;
+    document.getElementById('statRounds').textContent   = rounds;
+    document.getElementById('statBestStreak').textContent = bestStreak;
+    show('screenResult');
+  }
+
+  function resetQuiz() { showHUD(false); show('screenStart'); }
+
+  // ── TOAST ──
+  let toastTimeout;
+  function showToast(msg, type) {
+    const t=document.getElementById('toast');
+    t.textContent=msg;
+    t.className='show '+type;
+    clearTimeout(toastTimeout);
+    toastTimeout=setTimeout(()=>{ t.className=''; },1000);
+  }
+</script>
+</body>
+</html>
